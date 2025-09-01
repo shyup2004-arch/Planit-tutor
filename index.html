@@ -112,9 +112,10 @@
 
     <!-- Firebase SDKs -->
     <script type="module">
+        // [수정] Firebase SDK import 구문을 올바르게 분리했습니다.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // --- ⚙️ 앱 설정 ---
         const firebaseConfig = {
@@ -198,7 +199,7 @@
                     displayName: user.displayName || '이름 없음',
                     email: user.email,
                     role: selectedRole,
-                    createdAt: new Date() // [수정] serverTimestamp() 대신 new Date() 사용
+                    createdAt: new Date()
                 };
                 await setDoc(userDocRef, userData, { merge: true });
                 
@@ -287,7 +288,7 @@
                 await addDoc(collection(db, "classes"), {
                     className: className,
                     teacherId: user.uid,
-                    createdAt: new Date() // [수정] serverTimestamp() 대신 new Date() 사용
+                    createdAt: new Date()
                 });
                 
                 hideCreateClassModal();
@@ -334,7 +335,7 @@
                 const studentData = {
                     uid: user.uid,
                     displayName: user.displayName || '이름 없음',
-                    joinedAt: new Date() // [수정] serverTimestamp() 대신 new Date() 사용
+                    joinedAt: new Date()
                 };
 
                 const studentInClassRef = doc(db, "classes", classCode, "students", user.uid);
