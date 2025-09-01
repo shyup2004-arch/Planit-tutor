@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>플랜잇 튜터 (Planit-tutor)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans KR', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- 로그인 화면 -->
+    <div id="login-container" class="flex flex-col justify-center items-center h-screen">
+        <h1 class="text-4xl font-bold mb-2">🚀 Planit-tutor</h1>
+        <p class="text-gray-600 mb-8">선생님과 학생을 위한 새로운 학습 관리</p>
+        <button id="login-btn" class="bg-white text-gray-700 font-semibold py-3 px-6 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 flex items-center transition">
+            <svg class="w-5 h-5 mr-3" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.902,35.619,44,29.592,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+            Google 계정으로 시작하기
+        </button>
+    </div>
+
+    <!-- 메인 앱 컨테이너 (초기에는 숨김) -->
+    <div id="app-container" class="hidden h-screen flex flex-col">
+         <header class="bg-white shadow-md p-4 flex justify-between items-center z-10">
+            <h1 class="text-xl font-bold text-blue-600">🚀 Planit-tutor</h1>
+            <div>
+                <span id="user-info" class="font-semibold text-sm mr-4"></span>
+                <button id="logout-btn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition text-sm">로그아웃</button>
+            </div>
+        </header>
+        <main id="content-area" class="flex-grow p-4 md:p-8 overflow-y-auto">
+            <!-- 선생님/학생 뷰가 렌더링될 영역 -->
+        </main>
+    </div>
+    
+    <!-- 역할 선택 모달 (신규 사용자에게만 보임) -->
+    <div id="role-selection-modal" class="modal-overlay hidden">
+        <div class="bg-white rounded-2xl shadow-xl w-11/12 max-w-md p-8 text-center fade-in">
+            <h3 class="text-2xl font-bold mb-4">Planit-tutor에 오신 것을 환영합니다!</h3>
+            <p class="text-gray-600 mb-8">시작하기 전에, 본인의 역할을 선택해주세요.</p>
+            <div class="flex justify-center gap-4">
+                <button id="select-teacher-btn" class="w-full bg-blue-600 text-white font-bold py-4 px-6 rounded-lg hover:bg-blue-700 transition">
+                    👨‍🏫 선생님입니다
+                </button>
+                <button id="select-student-btn" class="w-full bg-green-600 text-white font-bold py-4 px-6 rounded-lg hover:bg-green-700 transition">
+                    🎓 학생입니다
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 클래스 생성 모달 -->
+    <div id="create-class-modal" class="modal-overlay hidden">
+        <div class="bg-white rounded-2xl shadow-xl w-11/12 max-w-md p-6 fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">새 클래스 만들기</h3>
+                <button id="close-create-class-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+            </div>
+            <div>
+                <label for="class-name-input" class="block text-sm font-medium mb-1">클래스 이름</label>
+                <input type="text" id="class-name-input" placeholder="예: 고3 이과반" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <p id="create-class-error" class="text-red-500 text-sm mt-2"></p>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button id="confirm-create-class-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition">생성하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 로딩 오버레이 -->
+    <div id="loading-overlay" class="modal-overlay hidden">
+        <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+    
+    <!-- 템플릿 영역 -->
+    <template id="teacher-dashboard-template">
+        <div class="container mx-auto max-w-4xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">내 클래스 목록</h2>
+                <button id="show-create-class-modal-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
+                    + 새 클래스 만들기
+                </button>
+            </div>
+            <div id="class-list-container" class="space-y-4">
+                <!-- 클래스 목록이 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+    </template>
+
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // --- ⚙️ 앱 설정 ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAAy3JLjWNDxdUqseyWp4xOYsjTMF6kGVE",
+            authDomain: "plan-it-app-519cc.firebaseapp.com",
+            projectId: "plan-it-app-519cc",
+            storageBucket: "plan-it-app-519cc.appspot.com",
+            messagingSenderId: "778034395079",
+            appId: "1:778034395079:web:11aff27bd5781dba8f8be2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- DOM 요소 ---
+        const loginContainer = document.getElementById('login-container');
+        const appContainer = document.getElementById('app-container');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const roleSelectionModal = document.getElementById('role-selection-modal');
+        const selectTeacherBtn = document.getElementById('select-teacher-btn');
+        const selectStudentBtn = document.getElementById('select-student-btn');
+        const userInfo = document.getElementById('user-info');
+        const contentArea = document.getElementById('content-area');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const createClassModal = document.getElementById('create-class-modal');
+        const closeCreateClassModalBtn = document.getElementById('close-create-class-modal-btn');
+        const confirmCreateClassBtn = document.getElementById('confirm-create-class-btn');
+        const classNameInput = document.getElementById('class-name-input');
+        const createClassError = document.getElementById('create-class-error');
+
+        // --- 인증 상태 관리 (핵심 로직) ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                loginContainer.classList.add('hidden');
+                checkUserRole(user);
+            } else {
+                loginContainer.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                hideLoading();
+            }
+        });
+
+        async function checkUserRole(user) {
+            showLoading();
+            const userDocRef = doc(db, "users", user.uid);
+            const docSnap = await getDoc(userDocRef);
+
+            if (docSnap.exists() && docSnap.data().role) {
+                hideRoleSelectionModal();
+                loadAppForRole(docSnap.data().role, user);
+            } else {
+                showRoleSelectionModal(user);
+            }
+            hideLoading();
+        }
+        
+        function loadAppForRole(role, user) {
+            appContainer.classList.remove('hidden');
+            const roleText = role === 'teacher' ? '선생님' : '학생';
+            userInfo.textContent = `${user.displayName} (${roleText})`;
+            
+            switch(role) {
+                case 'teacher':
+                    renderTeacherDashboard(user);
+                    break;
+                case 'student':
+                    contentArea.innerHTML = `<h2>학생 플래너 (구현 예정)</h2>`;
+                    break;
+                default:
+                    contentArea.innerHTML = `<p class="text-red-500">알 수 없는 역할입니다.</p>`;
+            }
+        }
+
+        async function handleRoleSelection(user, selectedRole) {
+            showLoading();
+            const userDocRef = doc(db, "users", user.uid);
+            try {
+                await setDoc(userDocRef, {
+                    uid: user.uid,
+                    displayName: user.displayName,
+                    email: user.email,
+                    role: selectedRole,
+                    createdAt: serverTimestamp()
+                }, { merge: true });
+                
+                hideRoleSelectionModal();
+                loadAppForRole(selectedRole, user);
+
+            } catch (error) {
+                console.error("역할 저장 중 오류 발생:", error);
+                alert("오류가 발생했습니다. 다시 시도해주세요.");
+            }
+            hideLoading();
+        }
+        
+        // --- 선생님 기능 ---
+        function renderTeacherDashboard(user) {
+            const template = document.getElementById('teacher-dashboard-template');
+            contentArea.innerHTML = ''; // 기존 내용 초기화
+            contentArea.appendChild(template.content.cloneNode(true));
+            
+            // 이벤트 리스너 연결
+            document.getElementById('show-create-class-modal-btn').addEventListener('click', () => {
+                createClassModal.classList.remove('hidden');
+            });
+
+            loadAndRenderClasses(user);
+        }
+
+        async function loadAndRenderClasses(user) {
+            showLoading();
+            const classListContainer = document.getElementById('class-list-container');
+            if (!classListContainer) return;
+
+            classListContainer.innerHTML = ''; // 목록 초기화
+            
+            const classesRef = collection(db, "classes");
+            const q = query(classesRef, where("teacherId", "==", user.uid));
+
+            try {
+                const querySnapshot = await getDocs(q);
+                if (querySnapshot.empty) {
+                    classListContainer.innerHTML = `<p class="text-center text-gray-500 py-8">아직 생성된 클래스가 없습니다. 새 클래스를 만들어보세요!</p>`;
+                } else {
+                    querySnapshot.forEach((doc) => {
+                        const classData = doc.data();
+                        const classId = doc.id; // 문서 ID가 바로 초대 코드
+                        const classElement = document.createElement('div');
+                        classElement.className = 'bg-white p-6 rounded-lg shadow-md';
+                        classElement.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800">${classData.className}</h3>
+                                    <p class="text-sm text-gray-500 mt-1">학생 수: 0명</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm font-semibold">학생 초대 코드</p>
+                                    <div class="mt-1 p-2 bg-gray-100 rounded-md font-mono text-blue-600 cursor-pointer" title="클릭하여 복사">
+                                        ${classId}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        classListContainer.appendChild(classElement);
+                    });
+                }
+            } catch (error) {
+                console.error("클래스 목록 로딩 오류: ", error);
+                classListContainer.innerHTML = `<p class="text-red-500">클래스 목록을 불러오는 중 오류가 발생했습니다.</p>`;
+            }
+            hideLoading();
+        }
+        
+        async function createNewClass(user) {
+            const className = classNameInput.value.trim();
+            if (!className) {
+                createClassError.textContent = '클래스 이름을 입력해주세요.';
+                return;
+            }
+            
+            showLoading();
+            createClassError.textContent = '';
+
+            try {
+                await addDoc(collection(db, "classes"), {
+                    className: className,
+                    teacherId: user.uid,
+                    createdAt: serverTimestamp(),
+                    students: [] // 초기 학생 목록은 비어있음
+                });
+                
+                hideCreateClassModal();
+                loadAndRenderClasses(user); // 목록 새로고침
+
+            } catch (error) {
+                console.error("클래스 생성 오류: ", error);
+                createClassError.textContent = '클래스 생성 중 오류가 발생했습니다.';
+            }
+            hideLoading();
+        }
+
+
+        // --- 모달 컨트롤 ---
+        function showRoleSelectionModal(user) {
+            roleSelectionModal.classList.remove('hidden');
+            const newSelectTeacherBtn = selectTeacherBtn.cloneNode(true);
+            selectTeacherBtn.parentNode.replaceChild(newSelectTeacherBtn, selectTeacherBtn);
+            newSelectTeacherBtn.addEventListener('click', () => handleRoleSelection(user, 'teacher'));
+            
+            const newSelectStudentBtn = selectStudentBtn.cloneNode(true);
+            selectStudentBtn.parentNode.replaceChild(newSelectStudentBtn, selectStudentBtn);
+            newSelectStudentBtn.addEventListener('click', () => handleRoleSelection(user, 'student'));
+        }
+        function hideRoleSelectionModal() {
+            roleSelectionModal.classList.add('hidden');
+        }
+        function hideCreateClassModal() {
+            createClassModal.classList.add('hidden');
+            classNameInput.value = '';
+            createClassError.textContent = '';
+        }
+
+        function showLoading() {
+            loadingOverlay.classList.remove('hidden');
+        }
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
+        }
+
+        // --- 이벤트 리스너 ---
+        loginBtn.addEventListener('click', () => {
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider).catch(error => {
+                console.error("Google 로그인 실패:", error);
+            });
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            signOut(auth).catch(error => {
+                console.error("로그아웃 실패:", error);
+            });
+        });
+
+        closeCreateClassModalBtn.addEventListener('click', hideCreateClassModal);
+        confirmCreateClassBtn.addEventListener('click', () => {
+             if (auth.currentUser) {
+                createNewClass(auth.currentUser);
+            }
+        });
+
+    </script>
+</body>
+</html>
+
