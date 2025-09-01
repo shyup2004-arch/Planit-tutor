@@ -97,12 +97,24 @@
         </div>
     </template>
 
+    <template id="student-join-class-template">
+        <div class="container mx-auto max-w-md text-center py-12">
+            <h2 class="text-2xl font-bold mb-4">클래스에 참여하세요!</h2>
+            <p class="text-gray-600 mb-6">선생님께 전달받은 초대 코드를 입력해주세요.</p>
+            <div class="flex gap-2">
+                <input type="text" id="invite-code-input" placeholder="초대 코드 입력" class="w-full p-3 border border-gray-300 rounded-lg text-center font-mono tracking-widest focus:ring-2 focus:ring-green-500">
+                <button id="join-class-btn" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition">참여하기</button>
+            </div>
+             <p id="join-class-error" class="text-red-500 text-sm mt-3"></p>
+        </div>
+    </template>
+
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // --- ⚙️ 앱 설정 ---
         const firebaseConfig = {
@@ -154,27 +166,26 @@
 
             if (docSnap.exists() && docSnap.data().role) {
                 hideRoleSelectionModal();
-                loadAppForRole(docSnap.data().role, user);
+                loadAppForRole(docSnap.data(), user);
             } else {
                 showRoleSelectionModal(user);
             }
             hideLoading();
         }
         
-        function loadAppForRole(role, user) {
+        function loadAppForRole(userData, user) {
             appContainer.classList.remove('hidden');
-            const roleText = role === 'teacher' ? '선생님' : '학생';
+            const roleText = userData.role === 'teacher' ? '선생님' : '학생';
             userInfo.textContent = `${user.displayName} (${roleText})`;
             
-            switch(role) {
-                case 'teacher':
-                    renderTeacherDashboard(user);
-                    break;
-                case 'student':
-                    contentArea.innerHTML = `<h2>학생 플래너 (구현 예정)</h2>`;
-                    break;
-                default:
-                    contentArea.innerHTML = `<p class="text-red-500">알 수 없는 역할입니다.</p>`;
+            if (userData.role === 'teacher') {
+                renderTeacherDashboard(user);
+            } else if (userData.role === 'student') {
+                if (userData.classId) {
+                    contentArea.innerHTML = `<h2>${userData.classId} 클래스 소속 학생입니다. (플래너 구현 예정)</h2>`;
+                } else {
+                    renderJoinClassView(user);
+                }
             }
         }
 
@@ -182,16 +193,17 @@
             showLoading();
             const userDocRef = doc(db, "users", user.uid);
             try {
-                await setDoc(userDocRef, {
+                const userData = {
                     uid: user.uid,
                     displayName: user.displayName,
                     email: user.email,
                     role: selectedRole,
                     createdAt: serverTimestamp()
-                }, { merge: true });
+                };
+                await setDoc(userDocRef, userData, { merge: true });
                 
                 hideRoleSelectionModal();
-                loadAppForRole(selectedRole, user);
+                loadAppForRole(userData, user);
 
             } catch (error) {
                 console.error("역할 저장 중 오류 발생:", error);
@@ -203,10 +215,9 @@
         // --- 선생님 기능 ---
         function renderTeacherDashboard(user) {
             const template = document.getElementById('teacher-dashboard-template');
-            contentArea.innerHTML = ''; // 기존 내용 초기화
+            contentArea.innerHTML = '';
             contentArea.appendChild(template.content.cloneNode(true));
             
-            // 이벤트 리스너 연결
             document.getElementById('show-create-class-modal-btn').addEventListener('click', () => {
                 createClassModal.classList.remove('hidden');
             });
@@ -219,7 +230,7 @@
             const classListContainer = document.getElementById('class-list-container');
             if (!classListContainer) return;
 
-            classListContainer.innerHTML = ''; // 목록 초기화
+            classListContainer.innerHTML = ''; 
             
             const classesRef = collection(db, "classes");
             const q = query(classesRef, where("teacherId", "==", user.uid));
@@ -229,16 +240,21 @@
                 if (querySnapshot.empty) {
                     classListContainer.innerHTML = `<p class="text-center text-gray-500 py-8">아직 생성된 클래스가 없습니다. 새 클래스를 만들어보세요!</p>`;
                 } else {
-                    querySnapshot.forEach((doc) => {
+                    querySnapshot.forEach(async (doc) => {
                         const classData = doc.data();
-                        const classId = doc.id; // 문서 ID가 바로 초대 코드
+                        const classId = doc.id;
+                        
+                        // 학생 수 가져오기
+                        const studentsSnapshot = await getDocs(collection(db, "classes", classId, "students"));
+                        const studentCount = studentsSnapshot.size;
+
                         const classElement = document.createElement('div');
                         classElement.className = 'bg-white p-6 rounded-lg shadow-md';
                         classElement.innerHTML = `
                             <div class="flex justify-between items-start">
                                 <div>
                                     <h3 class="text-xl font-bold text-gray-800">${classData.className}</h3>
-                                    <p class="text-sm text-gray-500 mt-1">학생 수: 0명</p>
+                                    <p class="text-sm text-gray-500 mt-1">학생 수: ${studentCount}명</p>
                                 </div>
                                 <div class="text-right">
                                     <p class="text-sm font-semibold">학생 초대 코드</p>
@@ -272,18 +288,72 @@
                 await addDoc(collection(db, "classes"), {
                     className: className,
                     teacherId: user.uid,
-                    createdAt: serverTimestamp(),
-                    students: [] // 초기 학생 목록은 비어있음
+                    createdAt: serverTimestamp()
                 });
                 
                 hideCreateClassModal();
-                loadAndRenderClasses(user); // 목록 새로고침
+                loadAndRenderClasses(user);
 
             } catch (error) {
                 console.error("클래스 생성 오류: ", error);
                 createClassError.textContent = '클래스 생성 중 오류가 발생했습니다.';
             }
             hideLoading();
+        }
+
+        // --- 학생 기능 ---
+        function renderJoinClassView(user) {
+            const template = document.getElementById('student-join-class-template');
+            contentArea.innerHTML = '';
+            contentArea.appendChild(template.content.cloneNode(true));
+
+            document.getElementById('join-class-btn').addEventListener('click', () => handleJoinClass(user));
+        }
+
+        async function handleJoinClass(user) {
+            const inviteCodeInput = document.getElementById('invite-code-input');
+            const errorElement = document.getElementById('join-class-error');
+            const classCode = inviteCodeInput.value.trim();
+
+            if (!classCode) {
+                errorElement.textContent = '초대 코드를 입력해주세요.';
+                return;
+            }
+
+            showLoading();
+            errorElement.textContent = '';
+            
+            const classDocRef = doc(db, "classes", classCode);
+            try {
+                const classDocSnap = await getDoc(classDocRef);
+                if (!classDocSnap.exists()) {
+                    errorElement.textContent = '유효하지 않은 초대 코드입니다.';
+                    hideLoading();
+                    return;
+                }
+
+                // 1. 학생의 정보를 클래스 하위 컬렉션에 추가
+                const studentInClassRef = doc(db, "classes", classCode, "students", user.uid);
+                await setDoc(studentInClassRef, {
+                    uid: user.uid,
+                    displayName: user.displayName,
+                    joinedAt: serverTimestamp()
+                });
+
+                // 2. 학생의 user 문서에 classId 업데이트
+                const userDocRef = doc(db, "users", user.uid);
+                await updateDoc(userDocRef, {
+                    classId: classCode
+                });
+
+                // 3. 앱 화면 새로고침
+                await checkUserRole(user);
+
+            } catch (error) {
+                console.error("클래스 참여 오류:", error);
+                errorElement.textContent = '참여 중 오류가 발생했습니다. 다시 시도해주세요.';
+                hideLoading();
+            }
         }
 
 
@@ -338,4 +408,3 @@
     </script>
 </body>
 </html>
-
