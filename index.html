@@ -15,6 +15,15 @@
         .fade-in { animation: fadeIn 0.5s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        
+        /* 플래너용 스타일 */
+        .task-item[data-status="2"] .task-text { text-decoration: line-through; color: #9ca3af; }
+        .task-item[data-status="1"] .task-text { color: #3b82f6; font-style: italic; }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        .plan-item.active { background-color: #eff6ff; color: #2563eb; font-weight: 600; }
+        .plan-item .delete-plan-btn { opacity: 0; transition: opacity 0.2s ease-in-out; }
+        .plan-item:hover .delete-plan-btn { opacity: 1; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -30,20 +39,30 @@
     </div>
 
     <!-- 메인 앱 컨테이너 (초기에는 숨김) -->
-    <div id="app-container" class="hidden h-screen flex flex-col">
-         <header class="bg-white shadow-md p-4 flex justify-between items-center z-10">
-            <h1 class="text-xl font-bold text-blue-600">🚀 Planit-tutor</h1>
-            <div>
-                <span id="user-info" class="font-semibold text-sm mr-4"></span>
-                <button id="logout-btn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition text-sm">로그아웃</button>
+    <div id="app-container" class="hidden h-screen flex">
+        <!-- 사이드바 -->
+        <aside id="sidebar" class="bg-white w-64 border-r flex-col shrink-0 hidden md:flex">
+             <div class="p-4 border-b flex justify-between items-center">
+                <h2 id="sidebar-title" class="text-xl font-bold text-blue-600"></h2>
             </div>
-        </header>
-        <main id="content-area" class="flex-grow p-4 md:p-8 overflow-y-auto">
+            <div id="sidebar-content" class="p-4">
+                <!-- 선생님/학생별 사이드바 내용 -->
+            </div>
+             <nav id="sidebar-nav" class="flex-grow p-2 overflow-y-auto">
+                <!-- 네비게이션 목록 (예: 플랜 목록) -->
+            </nav>
+            <div class="p-4 border-t mt-auto">
+                 <span id="user-info" class="font-semibold text-sm mr-4"></span>
+                <button id="logout-btn" class="w-full mt-2 bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition text-sm">로그아웃</button>
+            </div>
+        </aside>
+
+        <main id="content-area" class="flex-grow p-4 md:p-8 overflow-y-auto bg-gray-50">
             <!-- 선생님/학생 뷰가 렌더링될 영역 -->
         </main>
     </div>
     
-    <!-- 역할 선택 모달 (신규 사용자에게만 보임) -->
+    <!-- 역할 선택 모달 -->
     <div id="role-selection-modal" class="modal-overlay hidden">
         <div class="bg-white rounded-2xl shadow-xl w-11/12 max-w-md p-8 text-center fade-in">
             <h3 class="text-2xl font-bold mb-4">Planit-tutor에 오신 것을 환영합니다!</h3>
@@ -85,12 +104,6 @@
     <!-- 템플릿 영역 -->
     <template id="teacher-dashboard-template">
         <div class="container mx-auto max-w-4xl">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">내 클래스 목록</h2>
-                <button id="show-create-class-modal-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
-                    + 새 클래스 만들기
-                </button>
-            </div>
             <div id="class-list-container" class="space-y-4">
                 <!-- 클래스 목록이 여기에 동적으로 추가됩니다 -->
             </div>
@@ -108,14 +121,82 @@
              <p id="join-class-error" class="text-red-500 text-sm mt-3"></p>
         </div>
     </template>
+    
+    <!-- 학생 플래너 UI 템플릿 -->
+    <template id="student-planner-template">
+         <div id="setup-container" class="bg-white p-6 rounded-2xl shadow-md mb-8 fade-in">
+            <h2 class="text-xl font-semibold mb-4 border-b pb-2">새로운 학습 플랜 만들기</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="planName" class="block text-sm font-medium mb-1">플랜 이름</label>
+                    <input type="text" id="planName" placeholder="예: 2학기 중간고사 대비" class="w-full p-2 border rounded-lg focus:ring-2">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="startDate" class="block text-sm font-medium mb-1">시작일</label>
+                        <input type="date" id="startDate" class="w-full p-2 border rounded-lg focus:ring-2">
+                    </div>
+                    <div>
+                        <label for="endDate" class="block text-sm font-medium mb-1">종료일</label>
+                        <input type="date" id="endDate" class="w-full p-2 border rounded-lg focus:ring-2">
+                    </div>
+                </div>
+                <button id="generatePlanBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition">계획 생성하기</button>
+            </div>
+        </div>
+        <div id="plan-container"></div>
+        <div id="initial-message" class="text-center py-12 bg-white rounded-2xl shadow-md fade-in">
+            <p>왼쪽 메뉴에서 '새 플랜 만들기'를 누르거나<br>기존 학습 플랜을 선택해주세요.</p>
+        </div>
+    </template>
+
+    <template id="week-template">
+        <details class="bg-white p-4 md:p-6 rounded-2xl shadow-md mb-6 fade-in" open>
+            <summary class="flex justify-between items-center cursor-pointer">
+                <h2 class="text-lg md:text-xl font-bold">
+                    <span class="week-index"></span>주차 계획 
+                    <span class="text-sm font-normal text-gray-500 date-range"></span>
+                </h2>
+                <span class="text-blue-500 transform transition-transform duration-300">▼</span>
+            </summary>
+            <div class="mt-6">
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <input type="text" placeholder="이번 주에 할 일을 입력하세요" class="task-input flex-grow p-2 border rounded-lg">
+                    <button class="add-task-btn bg-blue-500 text-white px-4 py-2 rounded-lg transition shrink-0" data-type="weekly">추가</button>
+                </div>
+                <ul class="task-list mt-3 space-y-2"></ul>
+                <div class="daily-plan-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6"></div>
+            </div>
+        </details>
+    </template>
+
+    <template id="day-template">
+        <div class="bg-gray-100 p-4 rounded-lg border flex flex-col">
+            <h4 class="font-semibold mb-3 day-header"></h4>
+            <div class="flex gap-2 mb-3">
+                <input type="text" placeholder="오늘 할 일" class="task-input w-full text-sm p-2 border rounded-md">
+                <input type="number" placeholder="분" class="task-time-input w-16 text-sm p-2 border rounded-md text-center">
+                <button class="add-task-btn bg-gray-300 text-gray-700 text-sm px-3 py-1 rounded-md transition shrink-0" data-type="daily">추가</button>
+            </div>
+            <ul class="task-list space-y-2 flex-grow min-h-[50px]"></ul>
+        </div>
+    </template>
+
+    <template id="task-item-template">
+        <li class="task-item flex items-center p-2 rounded-md transition hover:bg-gray-50">
+            <button class="task-status text-lg font-bold w-6 text-center text-gray-400"></button>
+            <span class="task-text ml-2 flex-grow"></span>
+            <span class="task-time text-xs text-gray-500 ml-2"></span>
+            <button class="delete-task-btn text-gray-400 hover:text-red-500 transition ml-2 text-lg shrink-0">×</button>
+        </li>
+    </template>
 
 
     <!-- Firebase SDKs -->
     <script type="module">
-        // [수정] Firebase SDK import 구문을 올바르게 분리했습니다.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // --- ⚙️ 앱 설정 ---
         const firebaseConfig = {
@@ -130,6 +211,13 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // --- 전역 변수 ---
+        let currentUser = null;
+        let currentUserData = null;
+        let currentStudentData = null; // 학생 데이터를 담을 변수
+        const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+        const STATUS_MAP = { 0: { icon: '○' }, 1: { icon: '△' }, 2: { icon: '●' } };
 
         // --- DOM 요소 ---
         const loginContainer = document.getElementById('login-container');
@@ -147,13 +235,20 @@
         const confirmCreateClassBtn = document.getElementById('confirm-create-class-btn');
         const classNameInput = document.getElementById('class-name-input');
         const createClassError = document.getElementById('create-class-error');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarTitle = document.getElementById('sidebar-title');
+        const sidebarContent = document.getElementById('sidebar-content');
+        const sidebarNav = document.getElementById('sidebar-nav');
 
         // --- 인증 상태 관리 (핵심 로직) ---
         onAuthStateChanged(auth, user => {
             if (user) {
+                currentUser = user;
                 loginContainer.classList.add('hidden');
                 checkUserRole(user);
             } else {
+                currentUser = null;
+                currentUserData = null;
                 loginContainer.classList.remove('hidden');
                 appContainer.classList.add('hidden');
                 hideLoading();
@@ -166,25 +261,32 @@
             const docSnap = await getDoc(userDocRef);
 
             if (docSnap.exists() && docSnap.data().role) {
+                currentUserData = docSnap.data();
                 hideRoleSelectionModal();
-                loadAppForRole(docSnap.data(), user);
+                loadAppForRole(currentUserData, user);
             } else {
                 showRoleSelectionModal(user);
             }
             hideLoading();
         }
         
-        function loadAppForRole(userData, user) {
-            appContainer.classList.remove('hidden');
+        async function loadAppForRole(userData, user) {
+            appContainer.style.display = 'flex';
             const roleText = userData.role === 'teacher' ? '선생님' : '학생';
             userInfo.textContent = `${user.displayName || '사용자'} (${roleText})`;
             
             if (userData.role === 'teacher') {
+                sidebar.classList.remove('hidden');
+                sidebarTitle.textContent = "🎓 내 클래스";
                 renderTeacherDashboard(user);
             } else if (userData.role === 'student') {
+                sidebar.classList.remove('hidden');
+                sidebarTitle.textContent = "📚 내 학습 플랜";
                 if (userData.classId) {
-                    contentArea.innerHTML = `<h2>${userData.classId} 클래스 소속 학생입니다. (플래너 구현 예정)</h2>`;
+                    await loadStudentData(userData.classId, user.uid); // 학생 데이터 로드
+                    renderStudentPlanner(user);
                 } else {
+                    sidebar.classList.add('hidden'); // 클래스 없으면 사이드바 숨김
                     renderJoinClassView(user);
                 }
             }
@@ -194,17 +296,18 @@
             showLoading();
             const userDocRef = doc(db, "users", user.uid);
             try {
-                const userData = {
+                const newUserData = {
                     uid: user.uid,
                     displayName: user.displayName || '이름 없음',
                     email: user.email,
                     role: selectedRole,
                     createdAt: new Date()
                 };
-                await setDoc(userDocRef, userData, { merge: true });
+                await setDoc(userDocRef, newUserData, { merge: true });
                 
+                currentUserData = newUserData;
                 hideRoleSelectionModal();
-                loadAppForRole(userData, user);
+                loadAppForRole(currentUserData, user);
 
             } catch (error) {
                 console.error("역할 저장 중 오류 발생:", error);
@@ -215,14 +318,18 @@
         
         // --- 선생님 기능 ---
         function renderTeacherDashboard(user) {
-            const template = document.getElementById('teacher-dashboard-template');
-            contentArea.innerHTML = '';
-            contentArea.appendChild(template.content.cloneNode(true));
-            
+            sidebarContent.innerHTML = `
+                <button id="show-create-class-modal-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
+                    + 새 클래스 만들기
+                </button>
+            `;
             document.getElementById('show-create-class-modal-btn').addEventListener('click', () => {
                 createClassModal.classList.remove('hidden');
             });
 
+            const template = document.getElementById('teacher-dashboard-template');
+            contentArea.innerHTML = '';
+            contentArea.appendChild(template.content.cloneNode(true));
             loadAndRenderClasses(user);
         }
 
@@ -230,7 +337,6 @@
             showLoading();
             const classListContainer = document.getElementById('class-list-container');
             if (!classListContainer) return;
-
             classListContainer.innerHTML = ''; 
             
             const classesRef = collection(db, "classes");
@@ -239,9 +345,9 @@
             try {
                 const querySnapshot = await getDocs(q);
                 if (querySnapshot.empty) {
-                    classListContainer.innerHTML = `<p class="text-center text-gray-500 py-8">아직 생성된 클래스가 없습니다. 새 클래스를 만들어보세요!</p>`;
+                    classListContainer.innerHTML = `<p class="text-center text-gray-500 py-8 bg-white rounded-lg shadow">아직 생성된 클래스가 없습니다.</p>`;
                 } else {
-                    querySnapshot.forEach(async (doc) => {
+                    for (const doc of querySnapshot.docs) {
                         const classData = doc.data();
                         const classId = doc.id;
                         
@@ -265,7 +371,7 @@
                             </div>
                         `;
                         classListContainer.appendChild(classElement);
-                    });
+                    }
                 }
             } catch (error) {
                 console.error("클래스 목록 로딩 오류: ", error);
@@ -303,10 +409,9 @@
 
         // --- 학생 기능 ---
         function renderJoinClassView(user) {
-            const template = document.getElementById('student-join-class-template');
             contentArea.innerHTML = '';
+            const template = document.getElementById('student-join-class-template');
             contentArea.appendChild(template.content.cloneNode(true));
-
             document.getElementById('join-class-btn').addEventListener('click', () => handleJoinClass(user));
         }
 
@@ -314,7 +419,6 @@
             const inviteCodeInput = document.getElementById('invite-code-input');
             const errorElement = document.getElementById('join-class-error');
             const classCode = inviteCodeInput.value.trim();
-
             if (!classCode) {
                 errorElement.textContent = '초대 코드를 입력해주세요.';
                 return;
@@ -335,27 +439,330 @@
                 const studentData = {
                     uid: user.uid,
                     displayName: user.displayName || '이름 없음',
-                    joinedAt: new Date()
+                    joinedAt: new Date(),
+                    studyPlans: [], // 학생 데이터 초기화
+                    activePlanId: null
                 };
 
                 const studentInClassRef = doc(db, "classes", classCode, "students", user.uid);
                 await setDoc(studentInClassRef, studentData);
 
                 const userDocRef = doc(db, "users", user.uid);
-                await updateDoc(userDocRef, {
-                    classId: classCode
-                });
+                await updateDoc(userDocRef, { classId: classCode });
 
                 const updatedUserDoc = await getDoc(userDocRef);
-                loadAppForRole(updatedUserDoc.data(), user);
+                currentUserData = updatedUserDoc.data();
+                loadAppForRole(currentUserData, user);
 
             } catch (error) {
-                console.error("클래스 참여 중 심각한 오류 발생:", error);
-                console.error("시도한 데이터:", { classCode: classCode, user: user });
-                errorElement.textContent = '참여 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-                hideLoading();
+                console.error("클래스 참여 중 오류 발생:", error);
+                errorElement.textContent = '참여 중 오류가 발생했습니다. 다시 시도해주세요.';
+            } finally {
+                 hideLoading();
             }
         }
+        
+        // --- 학생 플래너 기능 (v1.0) ---
+        async function loadStudentData(classId, studentId) {
+            const studentDocRef = doc(db, "classes", classId, "students", studentId);
+            const docSnap = await getDoc(studentDocRef);
+            if (docSnap.exists()) {
+                currentStudentData = docSnap.data();
+                 if (!currentStudentData.studyPlans) currentStudentData.studyPlans = [];
+            } else {
+                 console.log("학생 데이터를 찾을 수 없습니다. 새로 생성합니다.");
+                 currentStudentData = { studyPlans: [], activePlanId: null };
+            }
+        }
+
+        function getStudentDataRef() {
+            if (!currentUserData.classId || !currentUser.uid) return null;
+            return doc(db, "classes", currentUserData.classId, "students", currentUser.uid);
+        }
+
+        function renderStudentPlanner(user) {
+            contentArea.innerHTML = '';
+            const template = document.getElementById('student-planner-template');
+            contentArea.appendChild(template.content.cloneNode(true));
+            
+            sidebarContent.innerHTML = `
+                <button id="new-plan-btn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition">
+                    + 새 플랜 만들기
+                </button>
+            `;
+
+            document.getElementById('new-plan-btn').addEventListener('click', showSetupView);
+            document.getElementById('generatePlanBtn').addEventListener('click', createNewPlanForStudent);
+            
+            renderStudentSidebar();
+
+            if (currentStudentData.activePlanId) {
+                loadPlanById(currentStudentData.activePlanId);
+            } else {
+                showInitialView();
+            }
+        }
+        
+        function renderStudentSidebar() {
+            sidebarNav.innerHTML = '';
+            const planList = document.createElement('ul');
+            planList.className = 'space-y-1';
+            
+            if (currentStudentData.studyPlans) {
+                currentStudentData.studyPlans.forEach(plan => {
+                    const li = document.createElement('li');
+                    li.className = `plan-item p-3 rounded-md cursor-pointer`;
+                    if (plan.id === currentStudentData.activePlanId) li.classList.add('active');
+                    li.dataset.planId = plan.id;
+                    li.innerHTML = `<div class="flex justify-between items-center">
+                                      <span class="font-semibold truncate">${plan.name}</span>
+                                      <button class="delete-plan-btn text-gray-400 hover:text-red-500 font-bold shrink-0 text-lg">×</button>
+                                  </div>`;
+                    planList.appendChild(li);
+                });
+            }
+            sidebarNav.appendChild(planList);
+
+            planList.addEventListener('click', (e) => {
+                const planItem = e.target.closest('.plan-item');
+                const deleteBtn = e.target.closest('.delete-plan-btn');
+
+                if (deleteBtn) {
+                     e.stopPropagation();
+                     deletePlan(planItem.dataset.planId);
+                } else if (planItem) {
+                    loadPlanById(planItem.dataset.planId);
+                }
+            });
+        }
+        
+        async function createNewPlanForStudent() {
+            const planName = document.getElementById('planName').value.trim();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            if (!startDate || !endDate || new Date(startDate) > new Date(endDate)) {
+                 alert('올바른 시작일과 종료일을 선택해주세요.');
+                return;
+            }
+            const newPlan = {
+                id: Date.now().toString(),
+                name: planName || `${startDate} ~ ${endDate}`,
+                startDate,
+                endDate,
+                tasks: {}
+            };
+            
+            currentStudentData.studyPlans.unshift(newPlan);
+            currentStudentData.activePlanId = newPlan.id;
+            
+            const studentDocRef = getStudentDataRef();
+            await updateDoc(studentDocRef, {
+                studyPlans: currentStudentData.studyPlans,
+                activePlanId: newPlan.id
+            });
+            
+            renderStudentSidebar();
+            loadPlanById(newPlan.id);
+        }
+        
+        function getActivePlan() {
+            return currentStudentData.studyPlans.find(p => p.id === currentStudentData.activePlanId);
+        }
+
+        function loadPlanById(planId) {
+            currentStudentData.activePlanId = planId;
+            const studentDocRef = getStudentDataRef();
+            updateDoc(studentDocRef, { activePlanId: planId }); // 비동기로 활성 플랜 ID 저장
+            
+            renderStudentSidebar();
+            
+            const plan = getActivePlan();
+            if (plan) {
+                renderPlan(plan);
+            } else {
+                showInitialView();
+            }
+        }
+        
+        async function deletePlan(planId) {
+            currentStudentData.studyPlans = currentStudentData.studyPlans.filter(p => p.id !== planId);
+            const newActiveId = currentStudentData.studyPlans.length > 0 ? currentStudentData.studyPlans[0].id : null;
+            currentStudentData.activePlanId = newActiveId;
+
+            const studentDocRef = getStudentDataRef();
+            await updateDoc(studentDocRef, {
+                studyPlans: currentStudentData.studyPlans,
+                activePlanId: newActiveId
+            });
+            
+            renderStudentSidebar();
+            if (newActiveId) {
+                loadPlanById(newActiveId);
+            } else {
+                showInitialView();
+            }
+        }
+
+        function showInitialView() {
+            document.getElementById('initial-message').style.display = 'block';
+            document.getElementById('setup-container').style.display = 'none';
+            document.getElementById('plan-container').innerHTML = '';
+        }
+
+        function showSetupView() {
+            document.getElementById('initial-message').style.display = 'none';
+            document.getElementById('setup-container').style.display = 'block';
+            document.getElementById('plan-container').innerHTML = '';
+            document.getElementById('planName').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+        }
+        
+        function renderPlan(plan) {
+            showInitialView();
+            document.getElementById('initial-message').style.display = 'none';
+            const planContainer = document.getElementById('plan-container');
+            planContainer.innerHTML = '';
+            
+            const startDate = new Date(plan.startDate + 'T00:00:00');
+            const endDate = new Date(plan.endDate + 'T00:00:00');
+            let currentWeekStart = new Date(startDate);
+            let dayOfWeek = currentWeekStart.getDay();
+            currentWeekStart.setDate(currentWeekStart.getDate() - dayOfWeek);
+            
+            let weekIndex = 0;
+            while(currentWeekStart <= endDate) {
+                const weekId = `week-${weekIndex}`;
+                planContainer.appendChild(createWeekElement(currentWeekStart, weekIndex, startDate, endDate, plan));
+                currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+                weekIndex++;
+            }
+            planContainer.addEventListener('click', handlePlanContainerClick);
+        }
+
+        function createWeekElement(weekStartDate, weekIndex, planStartDate, planEndDate, plan) {
+            const weekEndDate = new Date(weekStartDate);
+            weekEndDate.setDate(weekStartDate.getDate() + 6);
+            const weekId = `week-${weekIndex}`;
+
+            const template = document.getElementById('week-template').content.cloneNode(true);
+            const weekElement = template.firstElementChild;
+            
+            weekElement.querySelector('.week-index').textContent = weekIndex + 1;
+            weekElement.querySelector('.date-range').textContent = `(${formatDate(weekStartDate)} ~ ${formatDate(weekEndDate)})`;
+            
+            const weeklyTaskList = weekElement.querySelector('.task-list');
+            weeklyTaskList.id = weekId;
+            weekElement.querySelector('.add-task-btn').dataset.target = weekId;
+            
+            (plan.tasks[weekId] || []).forEach(task => addTaskToDOM(weeklyTaskList, task, 'weekly'));
+
+            const dailyGrid = weekElement.querySelector('.daily-plan-grid');
+            for (let i = 0; i < 7; i++) {
+                const currentDate = new Date(weekStartDate);
+                currentDate.setDate(weekStartDate.getDate() + i);
+                if (currentDate >= planStartDate && currentDate <= planEndDate) {
+                    dailyGrid.appendChild(createDayElement(currentDate, `day-${weekIndex}-${i}`, plan));
+                }
+            }
+            return weekElement;
+        }
+
+        function createDayElement(date, dayId, plan) {
+            const template = document.getElementById('day-template').content.cloneNode(true);
+            const dayElement = template.firstElementChild;
+
+            dayElement.querySelector('.day-header').textContent = `${formatDate(date)} (${DAY_NAMES[date.getDay()]})`;
+            
+            const taskList = dayElement.querySelector('.task-list');
+            taskList.id = dayId;
+            dayElement.querySelector('.add-task-btn').dataset.target = dayId;
+            
+            (plan.tasks[dayId] || []).forEach(task => addTaskToDOM(taskList, task, 'daily'));
+
+            return dayElement;
+        }
+
+        function handlePlanContainerClick(e) {
+            const target = e.target;
+            const addTaskBtn = target.closest('.add-task-btn');
+            const taskItem = target.closest('.task-item');
+
+            if (addTaskBtn) {
+                handleAddTask(addTaskBtn);
+            } else if (taskItem) {
+                if (target.matches('.delete-task-btn')) {
+                    taskItem.remove();
+                    saveCurrentPlanTasks();
+                } else if (target.matches('.task-status')) {
+                    let currentStatus = parseInt(taskItem.dataset.status);
+                    taskItem.dataset.status = (currentStatus + 1) % 3;
+                    target.textContent = STATUS_MAP[taskItem.dataset.status].icon;
+                    saveCurrentPlanTasks();
+                }
+            }
+        }
+
+        function handleAddTask(button) {
+            const container = button.closest('div');
+            const input = container.querySelector('.task-input');
+            const timeInput = container.querySelector('.task-time-input');
+            const taskText = input.value.trim();
+            const taskType = button.dataset.type;
+
+            if (taskText) {
+                const task = {
+                    text: taskText,
+                    status: 0,
+                    time: timeInput ? (parseInt(timeInput.value) || 0) : 0,
+                };
+                const list = document.getElementById(button.dataset.target);
+                addTaskToDOM(list, task, taskType);
+                input.value = '';
+                if(timeInput) timeInput.value = '';
+                input.focus();
+                saveCurrentPlanTasks();
+            }
+        }
+        
+        function addTaskToDOM(list, task, type) {
+            if (!list) return;
+            const template = document.getElementById('task-item-template').content.cloneNode(true);
+            const taskElement = template.firstElementChild;
+
+            taskElement.dataset.status = task.status;
+            taskElement.querySelector('.task-status').textContent = STATUS_MAP[task.status].icon;
+            taskElement.querySelector('.task-text').textContent = task.text;
+            
+            const timeDisplay = taskElement.querySelector('.task-time');
+            if (type === 'daily' && task.time > 0) {
+                timeDisplay.textContent = `(${task.time}분)`;
+            } else {
+                timeDisplay.remove();
+            }
+            list.appendChild(taskElement);
+        }
+
+        async function saveCurrentPlanTasks() {
+            const plan = getActivePlan();
+            if (!plan) return;
+
+            plan.tasks = {};
+            document.querySelectorAll('#plan-container .task-list').forEach(list => {
+                plan.tasks[list.id] = Array.from(list.querySelectorAll('.task-item')).map(item => {
+                    const text = item.querySelector('.task-text').textContent;
+                    const status = parseInt(item.dataset.status);
+                    const timeText = item.querySelector('.task-time');
+                    const time = timeText ? parseInt(timeText.textContent.match(/\d+/)[0]) : 0;
+                    return { text, status, time };
+                });
+            });
+
+            const studentDocRef = getStudentDataRef();
+            await updateDoc(studentDocRef, { studyPlans: currentStudentData.studyPlans });
+        }
+        
+        function formatDate(date) { return date.toISOString().split('T')[0]; }
 
 
         // --- 모달 컨트롤 ---
@@ -372,13 +779,8 @@
             classNameInput.value = '';
             createClassError.textContent = '';
         }
-
-        function showLoading() {
-            loadingOverlay.classList.remove('hidden');
-        }
-        function hideLoading() {
-            loadingOverlay.classList.add('hidden');
-        }
+        function showLoading() { loadingOverlay.classList.remove('hidden'); }
+        function hideLoading() { loadingOverlay.classList.add('hidden'); }
 
         // --- 이벤트 리스너 ---
         loginBtn.addEventListener('click', () => {
@@ -387,18 +789,10 @@
                 console.error("Google 로그인 실패:", error);
             });
         });
-
-        logoutBtn.addEventListener('click', () => {
-            signOut(auth).catch(error => {
-                console.error("로그아웃 실패:", error);
-            });
-        });
-
+        logoutBtn.addEventListener('click', () => { signOut(auth); });
         closeCreateClassModalBtn.addEventListener('click', hideCreateClassModal);
         confirmCreateClassBtn.addEventListener('click', () => {
-             if (auth.currentUser) {
-                createNewClass(auth.currentUser);
-            }
+             if (auth.currentUser) createNewClass(auth.currentUser);
         });
 
     </script>
