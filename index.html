@@ -283,10 +283,10 @@
                 sidebar.classList.remove('hidden');
                 sidebarTitle.textContent = "📚 내 학습 플랜";
                 if (userData.classId) {
-                    await loadStudentData(userData.classId, user.uid); // 학생 데이터 로드
+                    await loadStudentData(userData.classId, user.uid);
                     renderStudentPlanner(user);
                 } else {
-                    sidebar.classList.add('hidden'); // 클래스 없으면 사이드바 숨김
+                    sidebar.classList.add('hidden');
                     renderJoinClassView(user);
                 }
             }
@@ -440,7 +440,7 @@
                     uid: user.uid,
                     displayName: user.displayName || '이름 없음',
                     joinedAt: new Date(),
-                    studyPlans: [], // 학생 데이터 초기화
+                    studyPlans: [],
                     activePlanId: null
                 };
 
@@ -490,13 +490,14 @@
                     + 새 플랜 만들기
                 </button>
             `;
-
-            document.getElementById('new-plan-btn').addEventListener('click', showSetupView);
-            document.getElementById('generatePlanBtn').addEventListener('click', createNewPlanForStudent);
+            
+            // [수정] DOM에 요소가 추가된 후에 이벤트를 연결합니다.
+            contentArea.querySelector('#generatePlanBtn').addEventListener('click', createNewPlanForStudent);
+            sidebarContent.querySelector('#new-plan-btn').addEventListener('click', showSetupView);
             
             renderStudentSidebar();
 
-            if (currentStudentData.activePlanId) {
+            if (currentStudentData.activePlanId && currentStudentData.studyPlans.find(p => p.id === currentStudentData.activePlanId)) {
                 loadPlanById(currentStudentData.activePlanId);
             } else {
                 showInitialView();
@@ -508,7 +509,7 @@
             const planList = document.createElement('ul');
             planList.className = 'space-y-1';
             
-            if (currentStudentData.studyPlans) {
+            if (currentStudentData && currentStudentData.studyPlans) {
                 currentStudentData.studyPlans.forEach(plan => {
                     const li = document.createElement('li');
                     li.className = `plan-item p-3 rounded-md cursor-pointer`;
@@ -537,9 +538,9 @@
         }
         
         async function createNewPlanForStudent() {
-            const planName = document.getElementById('planName').value.trim();
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
+            const planName = contentArea.querySelector('#planName').value.trim();
+            const startDate = contentArea.querySelector('#startDate').value;
+            const endDate = contentArea.querySelector('#endDate').value;
             if (!startDate || !endDate || new Date(startDate) > new Date(endDate)) {
                  alert('올바른 시작일과 종료일을 선택해주세요.');
                 return;
@@ -566,13 +567,14 @@
         }
         
         function getActivePlan() {
+            if (!currentStudentData || !currentStudentData.studyPlans) return null;
             return currentStudentData.studyPlans.find(p => p.id === currentStudentData.activePlanId);
         }
 
         function loadPlanById(planId) {
             currentStudentData.activePlanId = planId;
             const studentDocRef = getStudentDataRef();
-            updateDoc(studentDocRef, { activePlanId: planId }); // 비동기로 활성 플랜 ID 저장
+            updateDoc(studentDocRef, { activePlanId: planId }); 
             
             renderStudentSidebar();
             
@@ -604,24 +606,28 @@
         }
 
         function showInitialView() {
-            document.getElementById('initial-message').style.display = 'block';
-            document.getElementById('setup-container').style.display = 'none';
-            document.getElementById('plan-container').innerHTML = '';
+            if(contentArea.querySelector('#initial-message')) {
+                contentArea.querySelector('#initial-message').style.display = 'block';
+                contentArea.querySelector('#setup-container').style.display = 'none';
+                contentArea.querySelector('#plan-container').innerHTML = '';
+            }
         }
 
         function showSetupView() {
-            document.getElementById('initial-message').style.display = 'none';
-            document.getElementById('setup-container').style.display = 'block';
-            document.getElementById('plan-container').innerHTML = '';
-            document.getElementById('planName').value = '';
-            document.getElementById('startDate').value = '';
-            document.getElementById('endDate').value = '';
+            if(contentArea.querySelector('#initial-message')) {
+                contentArea.querySelector('#initial-message').style.display = 'none';
+                contentArea.querySelector('#setup-container').style.display = 'block';
+                contentArea.querySelector('#plan-container').innerHTML = '';
+                contentArea.querySelector('#planName').value = '';
+                contentArea.querySelector('#startDate').value = '';
+                contentArea.querySelector('#endDate').value = '';
+            }
         }
         
         function renderPlan(plan) {
             showInitialView();
-            document.getElementById('initial-message').style.display = 'none';
-            const planContainer = document.getElementById('plan-container');
+            contentArea.querySelector('#initial-message').style.display = 'none';
+            const planContainer = contentArea.querySelector('#plan-container');
             planContainer.innerHTML = '';
             
             const startDate = new Date(plan.startDate + 'T00:00:00');
@@ -632,7 +638,6 @@
             
             let weekIndex = 0;
             while(currentWeekStart <= endDate) {
-                const weekId = `week-${weekIndex}`;
                 planContainer.appendChild(createWeekElement(currentWeekStart, weekIndex, startDate, endDate, plan));
                 currentWeekStart.setDate(currentWeekStart.getDate() + 7);
                 weekIndex++;
@@ -696,8 +701,15 @@
                     saveCurrentPlanTasks();
                 } else if (target.matches('.task-status')) {
                     let currentStatus = parseInt(taskItem.dataset.status);
-                    taskItem.dataset.status = (currentStatus + 1) % 3;
-                    target.textContent = STATUS_MAP[taskItem.dataset.status].icon;
+                    const newStatus = (currentStatus + 1) % 3;
+                    taskItem.dataset.status = newStatus;
+                    target.textContent = STATUS_MAP[newStatus].icon;
+                    
+                    const taskText = taskItem.querySelector('.task-text');
+                    taskText.style.textDecoration = newStatus === 2 ? 'line-through' : 'none';
+                    taskText.style.color = newStatus === 2 ? '#9ca3af' : newStatus === 1 ? '#3b82f6' : 'inherit';
+                    taskText.style.fontStyle = newStatus === 1 ? 'italic' : 'normal';
+
                     saveCurrentPlanTasks();
                 }
             }
@@ -716,7 +728,7 @@
                     status: 0,
                     time: timeInput ? (parseInt(timeInput.value) || 0) : 0,
                 };
-                const list = document.getElementById(button.dataset.target);
+                const list = contentArea.querySelector(`#${button.dataset.target}`);
                 addTaskToDOM(list, task, taskType);
                 input.value = '';
                 if(timeInput) timeInput.value = '';
@@ -733,6 +745,11 @@
             taskElement.dataset.status = task.status;
             taskElement.querySelector('.task-status').textContent = STATUS_MAP[task.status].icon;
             taskElement.querySelector('.task-text').textContent = task.text;
+
+             const taskText = taskElement.querySelector('.task-text');
+            taskText.style.textDecoration = task.status === 2 ? 'line-through' : 'none';
+            taskText.style.color = task.status === 2 ? '#9ca3af' : task.status === 1 ? '#3b82f6' : 'inherit';
+            taskText.style.fontStyle = task.status === 1 ? 'italic' : 'normal';
             
             const timeDisplay = taskElement.querySelector('.task-time');
             if (type === 'daily' && task.time > 0) {
@@ -748,12 +765,12 @@
             if (!plan) return;
 
             plan.tasks = {};
-            document.querySelectorAll('#plan-container .task-list').forEach(list => {
+            contentArea.querySelectorAll('#plan-container .task-list').forEach(list => {
                 plan.tasks[list.id] = Array.from(list.querySelectorAll('.task-item')).map(item => {
                     const text = item.querySelector('.task-text').textContent;
                     const status = parseInt(item.dataset.status);
                     const timeText = item.querySelector('.task-time');
-                    const time = timeText ? parseInt(timeText.textContent.match(/\d+/)[0]) : 0;
+                    const time = timeText ? parseInt(timeText.textContent.match(/\d+/)[0]) || 0 : 0;
                     return { text, status, time };
                 });
             });
