@@ -24,7 +24,7 @@
         <h1 class="text-4xl font-bold mb-2">🚀 Planit-tutor</h1>
         <p class="text-gray-600 mb-8">선생님과 학생을 위한 새로운 학습 관리</p>
         <button id="login-btn" class="bg-white text-gray-700 font-semibold py-3 px-6 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 flex items-center transition">
-            <svg class="w-5 h-5 mr-3" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.991l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.991z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.902,35.619,44,29.592,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+            <svg class="w-5 h-5 mr-3" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.902,35.619,44,29.592,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
             Google 계정으로 시작하기
         </button>
     </div>
@@ -198,7 +198,7 @@
                     displayName: user.displayName || '이름 없음',
                     email: user.email,
                     role: selectedRole,
-                    createdAt: serverTimestamp()
+                    createdAt: new Date() // [수정] serverTimestamp() 대신 new Date() 사용
                 };
                 await setDoc(userDocRef, userData, { merge: true });
                 
@@ -287,7 +287,7 @@
                 await addDoc(collection(db, "classes"), {
                     className: className,
                     teacherId: user.uid,
-                    createdAt: serverTimestamp()
+                    createdAt: new Date() // [수정] serverTimestamp() 대신 new Date() 사용
                 });
                 
                 hideCreateClassModal();
@@ -300,7 +300,7 @@
             hideLoading();
         }
 
-        // --- 학생 기능 (수정됨) ---
+        // --- 학생 기능 ---
         function renderJoinClassView(user) {
             const template = document.getElementById('student-join-class-template');
             contentArea.innerHTML = '';
@@ -330,30 +330,25 @@
                     hideLoading();
                     return;
                 }
-
-                // [수정된 부분] displayName이 null일 경우를 대비하여 기본값 추가
+                
                 const studentData = {
                     uid: user.uid,
                     displayName: user.displayName || '이름 없음',
-                    joinedAt: serverTimestamp()
+                    joinedAt: new Date() // [수정] serverTimestamp() 대신 new Date() 사용
                 };
 
-                // 1. 학생의 정보를 클래스 하위 컬렉션에 추가
                 const studentInClassRef = doc(db, "classes", classCode, "students", user.uid);
                 await setDoc(studentInClassRef, studentData);
 
-                // 2. 학생의 user 문서에 classId 업데이트
                 const userDocRef = doc(db, "users", user.uid);
                 await updateDoc(userDocRef, {
                     classId: classCode
                 });
 
-                // 3. 앱 화면 새로고침
                 const updatedUserDoc = await getDoc(userDocRef);
                 loadAppForRole(updatedUserDoc.data(), user);
 
             } catch (error) {
-                // [수정된 부분] 더 자세한 오류 로깅
                 console.error("클래스 참여 중 심각한 오류 발생:", error);
                 console.error("시도한 데이터:", { classCode: classCode, user: user });
                 errorElement.textContent = '참여 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
